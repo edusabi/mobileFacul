@@ -1,0 +1,6 @@
+@echo off
+echo 🚀 Iniciando o emulador Android...
+start "" emulator -avd Pixel_6
+timeout /t 15 >nul
+echo 📱 Iniciando o servidor Expo...
+start "" cmd /k "npx expo start"
