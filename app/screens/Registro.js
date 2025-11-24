@@ -8,24 +8,68 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import { supabase } from '../api/SupabaseClient';
 
-const Registro = () => {
+const Registro = ({ navigation }) => {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
 
-  const handleRegister = () => {
+  // Função de cadastro
+  const handleRegister = async () => {
     if (!nome || !email || !senha) {
       Alert.alert('Atenção', 'Preencha todos os campos.');
       return;
     }
 
-    Alert.alert('Sucesso 🎉', `Nome: ${nome}\nEmail: ${email}`);
+    try {
+      // 🔹 1. Cria o usuário na autenticação do Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: senha,
+        options: {
+          data: { nome }, // Armazena o nome como metadado
+        },
+      });
+
+      if (error) {
+        Alert.alert('Erro no cadastro', error.message);
+        return;
+      }
+
+      // 🔹 2. Salva informações complementares na tabela 'usuarios'
+      // (sem senha, pois já está segura no Auth)
+      const { error: insertError } = await supabase
+        .from('usuarios')
+        .insert([{ nome, email }]);
+
+      if (insertError) {
+        Alert.alert('Erro ao salvar dados', insertError.message);
+        return;
+      }
+
+      Alert.alert(
+        'Sucesso 🎉',
+        'Cadastro realizado! Verifique seu e-mail para confirmar a conta.'
+      );
+
+      navigation.navigate('Registro');
+
+      setNome('');
+      setEmail('');
+      setSenha('');
+    } catch (err) {
+      Alert.alert('Erro inesperado', err.message);
+    }
   };
 
   return (
     <View style={styles.container}>
-        <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain"/>
+      <Image
+        source={require('../assets/logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
 
       <TextInput
         style={styles.input}
@@ -38,6 +82,7 @@ const Registro = () => {
         style={styles.input}
         placeholder="E-mail"
         keyboardType="email-address"
+        autoCapitalize="none"
         value={email}
         onChangeText={setEmail}
       />
@@ -53,6 +98,14 @@ const Registro = () => {
       <TouchableOpacity style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Cadastrar</Text>
       </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={styles.linkContainer}
+        onPress={() => navigation.navigate('Login')}
+      >
+        <Text style={styles.linkText}>Já tem conta? Clique aqui</Text>
+      </TouchableOpacity>
+            
     </View>
   );
 };
@@ -64,15 +117,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     justifyContent: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
+    paddingTop: 60,
   },
   input: {
+    width: '100%',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
@@ -84,14 +134,21 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
+    width: '100%',
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
   },
-  logo:{
-    width: 400,
-    height: 400,
-  }
+  logo: {
+    width: 200,
+    height: 200,
+    marginBottom: 30,
+  },
+  linkText: {
+    margin: 20,
+    color: '#007AFF',
+    textDecorationLine: 'underline',
+  },
 });

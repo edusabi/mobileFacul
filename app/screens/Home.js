@@ -50,8 +50,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
    logo: {
-    width: 400,
-    height: 400,
+    padding: 25,
+    margin: 50,
+    width: 300,
+    height: 300,
   },
 });
 
