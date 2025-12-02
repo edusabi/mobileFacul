@@ -8,7 +8,6 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../api/SupabaseClient';
 
-// Path local da imagem (logo)
 const LOGO_PATH = 'file:///mnt/data/458fb76c-5cd7-44a7-bf1e-c9aecec33771.png';
 
 export default function NovaVenda() {
@@ -176,7 +175,7 @@ export default function NovaVenda() {
         return Alert.alert('Erro ao registrar itens da venda');
       }
 
-      // buscar venda completa (com cliente e itens + produto) para gerar recibo
+      // buscar venda completa para gerar recibo
       const { data: vendaFull, error: vendaFullErr } = await supabase
         .from('vendas')
         .select(`
@@ -187,14 +186,13 @@ export default function NovaVenda() {
         .eq('id', vendaData.id)
         .single();
 
-      // se a query acima falhar por nome de relacionamento, fallback: construir dados a partir do local
+      // fallback se query falhar
       let vendaForPdf = null;
 
       if (vendaFull && !vendaFullErr) {
-        // normaliza para formato esperado
         vendaForPdf = {
           id: vendaFull.id,
-          numero: vendaFull.numero || '', // se serial estiver disponível
+          numero: vendaFull.numero || '',
           data: vendaFull.data || vendaFull.created_at || new Date().toISOString(),
           vendedor: vendaFull.vendedor,
           forma_pagamento: vendaFull.forma_pagamento,
@@ -209,7 +207,6 @@ export default function NovaVenda() {
           })),
         };
       } else {
-        // fallback: usar dados locais (cart e selectedClient)
         vendaForPdf = {
           id: vendaData.id,
           numero: vendaData.numero || '',
@@ -245,13 +242,11 @@ export default function NovaVenda() {
     }
   }
 
-  // Gera uma chave de acesso aleatória de 44 dígitos apenas para o visual
   function gerarChaveAcesso() {
-    let chave = "2623"; // Início fictício (estado + ano)
+    let chave = "2623";
     for (let i = 0; i < 40; i++) {
       chave += Math.floor(Math.random() * 10).toString();
     }
-    // Formata visualmente a cada 4 dígitos
     return chave.replace(/(\d{4})(?=\d)/g, '$1 ');
   }
 
@@ -260,13 +255,8 @@ export default function NovaVenda() {
     const dataEmissao = new Date(venda.data);
     const dataStr = dataEmissao.toLocaleDateString('pt-BR') + ' ' + dataEmissao.toLocaleTimeString('pt-BR');
     
-    // Geração do QR Code usando API pública baseada na chave
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${chaveAcesso.replace(/\s/g,'')}`;
 
-    // Monta a lista de itens no formato comprimido de cupom
-    // Ex: 
-    // 1. NOME DO PRODUTO
-    //    1 UN x 10,00 (Total 10,00)
     const itensHtml = venda.itens.map((i, index) => `
       <div style="margin-bottom: 5px;">
         <div style="font-weight:bold;">${index + 1}. ${escapeHtml(i.nome.toUpperCase())}</div>
@@ -282,41 +272,27 @@ export default function NovaVenda() {
       <head>
         <meta charset="utf-8"/>
         <style>
-          /* CSS para simular impressão térmica */
-          @page { margin: 0; size: 80mm auto; } /* Tenta forçar largura de papel térmico */
-          
+          @page { margin: 0; size: 80mm auto; }
           body { 
             font-family: 'Courier New', Courier, monospace; 
             font-size: 10px; 
-            background: #fff; /* Se quiser amarelo, use #ffffd0, mas impressora térmica é p/b */
+            background: #fff; 
             margin: 0; 
             padding: 10px;
             color: #000;
           }
-          
-          .container { 
-            max-width: 300px; /* Largura fixa para simular o papel */
-            margin: 0 auto; 
-          }
-          
+          .container { max-width: 300px; margin: 0 auto; }
           .center { text-align: center; }
           .right { text-align: right; }
           .bold { font-weight: bold; }
-          
-          .dashed { 
-            border-top: 1px dashed #000; 
-            margin: 5px 0; 
-          }
-          
+          .dashed { border-top: 1px dashed #000; margin: 5px 0; }
           .section { margin-bottom: 8px; }
-          
           .header-info { font-size: 11px; }
           .title { font-size: 12px; font-weight: bold; margin: 5px 0; }
         </style>
       </head>
       <body>
         <div class="container">
-          
           <div class="center section header-info">
             <div class="bold" style="font-size:14px;">SELARIA RAIMUNDO</div>
             <div>CNPJ: 60.288.584/0001-74</div>
@@ -324,29 +300,22 @@ export default function NovaVenda() {
             <div>Cachoeirinha - PE</div>
             <div>Tel: (81) 99306-0970</div>
           </div>
-
           <div class="dashed"></div>
-
           <div class="center section">
             <div class="title">DANFE NFC-e - Documento Auxiliar</div>
             <div style="font-size:9px;">da Nota Fiscal de Consumidor Eletrônica</div>
             <div style="font-size:9px;">Não permite aproveitamento de crédito de ICMS</div>
           </div>
-
           <div class="dashed"></div>
-
           <div class="section">
             <div style="margin-bottom:4px; font-weight:bold;">ITEM CÓDIGO DESCRIÇÃO</div>
             <div style="margin-bottom:4px; font-weight:bold; display:flex; justify-content:space-between;">
               <span>QTD. UN. VL.UNIT</span>
               <span>VL.TOTAL</span>
             </div>
-            
             ${itensHtml}
           </div>
-
           <div class="dashed"></div>
-
           <div class="section">
             <div style="display:flex; justify-content:space-between; font-weight:bold;">
               <span>QTD. TOTAL DE ITENS</span>
@@ -365,9 +334,7 @@ export default function NovaVenda() {
               <span>${Number(venda.total).toFixed(2).replace('.', ',')}</span>
             </div>
           </div>
-
           <div class="dashed"></div>
-
           <div class="center section">
             <div class="bold">EMISSÃO NORMAL</div>
             <div>Número: ${venda.numero || '000000237'} Série: 001</div>
@@ -377,9 +344,7 @@ export default function NovaVenda() {
             <div class="bold" style="font-size:9px; margin-top:3px;">CHAVE DE ACESSO</div>
             <div style="font-size:9px; letter-spacing: 0.5px;">${chaveAcesso}</div>
           </div>
-
           <div class="dashed"></div>
-
           <div class="center section">
             <div class="bold">CONSUMIDOR</div>
             ${venda.cliente 
@@ -389,41 +354,29 @@ export default function NovaVenda() {
               : '<div>CONSUMIDOR NÃO IDENTIFICADO</div>'
             }
           </div>
-
           <div class="dashed"></div>
-
           <div class="center section">
             <div style="font-size:9px; margin-bottom:5px;">Consulta via Leitor de QR Code</div>
             <img src="${qrCodeUrl}" style="width:120px; height:120px;" />
             <div style="font-size:9px; margin-top:5px;">Protocolo de Autorização: 3231${Math.floor(Math.random()*100000)}</div>
           </div>
-
           <div class="dashed"></div>
-
           <div class="center section" style="font-size:9px;">
             Tributos Totais Incidentes (Lei Federal 12.741/2012): R$ ${(venda.total * 0.18).toFixed(2).replace('.', ',')}
           </div>
-          
           <div class="center bold" style="margin-top:10px; font-size:11px;">
             AGRADECEMOS A PREFERÊNCIA!
           </div>
-
         </div>
       </body>
       </html>
     `;
 
-    // Configura a largura do PDF para simular 80mm
-    const { uri } = await Print.printToFileAsync({ 
-      html,
-      // width: 302, // Largura em pontos (aprox 80mm). Se bugar no Android, remova essa linha e confie no CSS "container"
-    });
-    
+    const { uri } = await Print.printToFileAsync({ html });
     await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'NFC-e' });
     return uri;
   }
 
-  // util: escapa texto para inserir no HTML
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -453,17 +406,23 @@ export default function NovaVenda() {
         style={styles.input}
       />
 
-      <FlatList
-        data={filteredClients}
-        keyExtractor={i => i.id}
-        style={{ maxHeight: 140 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => selectClient(item)} style={styles.listItem}>
-            <Text>{item.nome}</Text>
-            <Text style={styles.small}>{item.cpf}</Text>
-          </TouchableOpacity>
-        )}
-      />
+      {/* SOLUÇÃO 1: Substituímos FlatList por um ScrollView interno com nestedScrollEnabled.
+         Usamos slice(0,50) para garantir performance se houver muitos clientes.
+      */}
+      <View style={{ maxHeight: 140, borderWidth:1, borderColor:'#f0f0f0', borderRadius:6, marginTop:4 }}>
+        <ScrollView nestedScrollEnabled={true}>
+          {filteredClients.slice(0, 50).map((item) => (
+             <TouchableOpacity 
+                key={item.id} 
+                onPress={() => selectClient(item)} 
+                style={styles.listItem}
+             >
+              <Text>{item.nome}</Text>
+              <Text style={styles.small}>{item.cpf}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <Text style={styles.label}>Cliente selecionado</Text>
       <Text style={styles.selectedText}>
@@ -500,11 +459,10 @@ export default function NovaVenda() {
       <Text style={[styles.title, { marginTop: 16 }]}>Carrinho</Text>
       {cart.length === 0 && <Text style={{ color:'#666' }}>Carrinho vazio</Text>}
 
-      <FlatList
-        data={cart}
-        keyExtractor={i => i.id}
-        renderItem={({ item }) => (
-          <View style={styles.cartItem}>
+      {/* SOLUÇÃO 2: Substituímos FlatList do carrinho por .map() */}
+      <View>
+        {cart.map((item) => (
+          <View key={item.id} style={styles.cartItem}>
             <View style={{ flex:1 }}>
               <Text style={{ fontWeight:'600' }}>{item.product.nome}</Text>
               <Text style={styles.small}>R$ {item.unit.toFixed(2)}</Text>
@@ -525,8 +483,8 @@ export default function NovaVenda() {
               </TouchableOpacity>
             </View>
           </View>
-        )}
-      />
+        ))}
+      </View>
 
       <View style={{ marginTop:12, alignItems:'flex-end' }}>
         <Text style={{ fontWeight:'600' }}>SUBTOTAL: R$ {subtotal.toFixed(2)}</Text>
@@ -538,18 +496,18 @@ export default function NovaVenda() {
       </TouchableOpacity>
 
       <Text style={[styles.title, { marginTop: 20 }]}>Histórico (local)</Text>
-      <FlatList
-        data={salesHistory}
-        keyExtractor={(s) => s.id}
-        renderItem={({ item }) => (
-          <View style={styles.saleItem}>
+      
+      {/* SOLUÇÃO 3: Substituímos FlatList do histórico por .map() */}
+      <View>
+        {salesHistory.map((item) => (
+          <View key={item.id} style={styles.saleItem}>
             <Text style={{ fontWeight:'600' }}>{item.cliente?.nome || 'Cliente'} — R$ {Number(item.total).toFixed(2)}</Text>
             <Text style={styles.small}>{new Date(item.data).toLocaleString()}</Text>
           </View>
-        )}
-      />
+        ))}
+      </View>
 
-      {/* Modal de produtos */}
+      {/* Modal de produtos - Mantido com FlatList pois está isolado do ScrollView principal */}
       <Modal visible={productModalVisible} animationType="slide">
         <View style={{ flex:1, padding:16 }}>
           <Text style={styles.title}>Escolher produto</Text>

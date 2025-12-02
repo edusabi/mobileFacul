@@ -6,39 +6,111 @@ const PagePrinci = ({navigation}) => {
   const [userName, setUserName] = useState('...');
   const [loading, setLoading] = useState(true);
 
-  const recentSales = [
-    { id: 192, date: '2025-09-01', client: 'Dado Vaquinha', total: 370.00 },
-    { id: 191, date: '2025-08-31', client: 'Kátia Silva', total: 120.00 },
-    { id: 190, date: '2025-06-26', client: 'Márcia & Souza', total: 85.00 },
-  ];
+  const [recentSales, setRecentSales] = useState([]);
+  const [clientesQtd, setClientesQtd] = useState(0);
+  const [produtosQtd, setProdutosQtd] = useState(0);
+  const [totalMes, setTotalMes] = useState(0);
 
   useEffect(() => {
     fetchUserData();
+    fetchRecentSales();
+    fetchClientesQtd();
+    fetchProdutosQtd();
+    fetchTotalDoMes();
   }, []);
 
+  // ------- Buscar Usuário -------
   const fetchUserData = async () => {
-  try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
 
-    if (userError) throw userError;
-    console.log('Usuário autenticado:', user);
-
-    if (user) {
-      const firstName = user.user_metadata?.nome || user.email?.split('@')[0];
-
-      setUserName(firstName);
-    } else {
+      if (user) {
+        const firstName = user.user_metadata?.nome || user.email?.split('@')[0];
+        setUserName(firstName);
+      } else {
+        setUserName('Visitante');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuário:', error.message);
       setUserName('Visitante');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Erro ao buscar dados do usuário:', error.message);
-    setUserName('Visitante');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
+  // ------- Buscar Últimas 3 vendas -------
+  const fetchRecentSales = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('vendas')
+        .select(`
+          id,
+          data,
+          total,
+          clientes:cliente_id ( nome )
+        `)
+        .order('data', { ascending: false })
+        .limit(3);
 
+      if (error) throw error;
+
+      const formatted = data.map(item => ({
+        id: item.id,
+        date: item.data ? item.data.split("T")[0] : "",
+        client: item.clientes?.nome || "Sem nome",
+        total: item.total ?? 0,
+      }));
+
+      setRecentSales(formatted);
+
+    } catch (e) {
+      console.error('Erro ao buscar vendas:', e.message);
+    }
+  };
+
+  // ------- TOTAL DE CLIENTES -------
+  const fetchClientesQtd = async () => {
+    const { count, error } = await supabase
+      .from("clientes")   // ← AJUSTE AQUI
+      .select("id", { count: "exact", head: true });
+
+    if (!error) setClientesQtd(count);
+  };
+
+  // ------- TOTAL DE PRODUTOS -------
+  const fetchProdutosQtd = async () => {
+    const { count, error } = await supabase
+      .from("produtos")
+      .select("id", { count: "exact", head: true });
+
+    if (!error) setProdutosQtd(count);
+  };
+
+  // ------- TOTAL DE VENDAS DO MÊS -------
+  const fetchTotalDoMes = async () => {
+    try {
+      const hoje = new Date();
+      const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString();
+      const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1).toISOString();
+
+      const { data, error } = await supabase
+        .from("vendas")
+        .select("total")
+        .gte("data", inicioMes)
+        .lt("data", fimMes);
+
+      if (error) throw error;
+
+      const soma = data.reduce((acc, v) => acc + (v.total || 0), 0);
+      setTotalMes(soma);
+
+    } catch (e) {
+      console.log("Erro ao buscar total do mês:", e.message);
+    }
+  };
+
+  // ------- LOADING -------
   if (loading) {
     return (
       <View style={styles.container}>
@@ -53,13 +125,14 @@ const PagePrinci = ({navigation}) => {
         <Text style={styles.welcomeText}>Bem-vindo(a), {userName}!</Text>
       </View>
 
+      {/* ---- MÉTRICAS ---- */}
       <View style={styles.metricsRow}>
-        <MetricCard title="Total de Vendas (Mês)" value="R$ 0.0" color="#1E90FF" />
-        <MetricCard title="Produtos em Estoque" value="0" color="#3CB371" />
-        <MetricCard title="Clientes Cadastrados" value="0" color="#DC143C" />
+        <MetricCard title="Total de Vendas (Mês)" value={`R$ ${totalMes.toFixed(2)}`} color="#1E90FF" />
+        <MetricCard title="Produtos em Estoque" value={produtosQtd} color="#3CB371" />
+        <MetricCard title="Clientes Cadastrados" value={clientesQtd} color="#DC143C" />
       </View>
 
-      {/* Botões de Ação */}
+      {/* Botões */}
       <View style={styles.actionsRow}>
         <ActionButton title="Nova Venda" color="#3CB371" onPress={() => navigation.navigate('NovaVenda')} />
         <ActionButton title="Clientes" color="#1E90FF" onPress={() => navigation.navigate('Clientes')} />
@@ -67,11 +140,10 @@ const PagePrinci = ({navigation}) => {
         <ActionButton title="Relatórios" color="#FF8C00" onPress={() => navigation.navigate('Relatorios')} />
       </View>
 
-
-      {/* Tabela de Últimas Vendas */}
+      {/* Últimas Vendas */}
       <Text style={styles.sectionTitle}>Últimas Vendas</Text>
       <View style={styles.table}>
-        {/* Cabeçalho da Tabela */}
+
         <View style={styles.tableHeader}>
           <Text style={[styles.headerCell, { flex: 0.5 }]}>ID</Text>
           <Text style={[styles.headerCell, { flex: 1.5 }]}>Data</Text>
@@ -79,13 +151,14 @@ const PagePrinci = ({navigation}) => {
           <Text style={[styles.headerCell, { flex: 1.5, textAlign: 'right' }]}>Total</Text>
         </View>
 
-        {/* Linhas da Tabela */}
         {recentSales.map((sale) => (
           <View key={sale.id} style={styles.tableRow}>
             <Text style={[styles.dataCell, { flex: 0.5 }]}>{sale.id}</Text>
             <Text style={[styles.dataCell, { flex: 1.5 }]}>{sale.date}</Text>
             <Text style={[styles.dataCell, { flex: 3 }]}>{sale.client}</Text>
-            <Text style={[styles.dataCell, { flex: 1.5, textAlign: 'right' }]}>R$ {sale.total.toFixed(2)}</Text>
+            <Text style={[styles.dataCell, { flex: 1.5, textAlign: 'right' }]}>
+              R$ {sale.total.toFixed(2)}
+            </Text>
           </View>
         ))}
       </View>
@@ -93,7 +166,7 @@ const PagePrinci = ({navigation}) => {
   );
 };
 
-// --- Componentes Reutilizáveis ---
+// --------------------------------------------------------------------
 
 const MetricCard = ({ title, value, color }) => (
   <View style={[styles.card, { backgroundColor: color }]}>
@@ -108,13 +181,13 @@ const ActionButton = ({ title, color, onPress }) => (
   </TouchableOpacity>
 );
 
-// --- Estilos (Styles) ---
+// --------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 15,
-    backgroundColor: '#f0f2f5', // Cor de fundo leve
+    backgroundColor: '#f0f2f5',
   },
   loadingText: {
     fontSize: 18,
@@ -130,13 +203,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
-  // Métricas
+
   metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     marginBottom: 20,
   },
+
   card: {
     width: '30%',
     padding: 15,
@@ -150,6 +224,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
     justifyContent: 'center',
   },
+
   cardTitle: {
     fontSize: 12,
     color: '#fff',
@@ -161,13 +236,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
-  // Ações/Botões
+
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 30,
     marginTop: 10,
   },
+
   actionButton: {
     flex: 1,
     marginHorizontal: 4,
@@ -182,13 +258,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 12,
   },
-  // Tabela
+
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 10,
     color: '#333',
   },
+
   table: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -199,6 +276,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
+
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#e6e8eb',
@@ -206,18 +284,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
   },
+
   headerCell: {
     fontWeight: 'bold',
     fontSize: 12,
     color: '#444',
     paddingHorizontal: 8,
   },
+
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+
   dataCell: {
     fontSize: 11,
     color: '#333',

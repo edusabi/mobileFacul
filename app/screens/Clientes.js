@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   Alert,
   StyleSheet,
   TouchableOpacity,
@@ -77,13 +76,12 @@ const Clientes = () => {
       <TouchableOpacity
         style={styles.botaoSalvar}
         onPress={salvarCliente}
-        disabled={loading} // Desabilita o botão enquanto estiver carregando
+        disabled={loading}
       >
-               {" "}
+        {/* Removi os {" "} soltos que estavam aqui */}
         <Text style={styles.textoBotao}>
-                    {loading ? "Salvando..." : "Salvar"}       {" "}
+          {loading ? "Salvando..." : "Salvar"}
         </Text>
-             {" "}
       </TouchableOpacity>
     </View>
   );
@@ -108,20 +106,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   botaoSalvar: {
-    backgroundColor: "#4CAF50", // 🟢 Cor Verde para Salvar (Ação Primária)
+    backgroundColor: "#4CAF50",
     padding: 12,
     borderRadius: 8,
-    alignItems: "center", // Centraliza o texto horizontalmente
-    justifyContent: "center", // Centraliza o texto verticalmente
-    marginTop: 10, // Um pequeno espaçamento acima dos inputs
-    elevation: 3, // Sombra (Android)
-    shadowColor: "#000", // Sombra (iOS)
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    elevation: 3,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
   textoBotao: {
-    color: "#FFFFFF", // ⚪ Texto Branco
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "bold",
   },

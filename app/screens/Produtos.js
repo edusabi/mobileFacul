@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  Alert, 
+  StyleSheet, 
+  TouchableOpacity // Importar TouchableOpacity
+} from 'react-native';
 import { supabase } from '../api/SupabaseClient';
 
 const Produtos = () => {
@@ -73,10 +80,17 @@ const Produtos = () => {
         keyboardType="numeric"
       />
 
-      <Button
-        title={loading ? 'Salvando...' : 'Salvar Produto'}
+      {/* Substituí o Button pelo TouchableOpacity para estilizar */}
+      <TouchableOpacity 
+        style={styles.botaoSalvar} 
         onPress={salvarProduto}
-      />
+        disabled={loading}
+      >
+        <Text style={styles.textoBotao}>
+          {loading ? 'Salvando...' : 'Salvar Produto'}
+        </Text>
+      </TouchableOpacity>
+
     </View>
   );
 };
@@ -98,6 +112,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 12,
+  },
+  // Novos estilos para o botão verde
+  botaoSalvar: {
+    backgroundColor: '#4CAF50', // Verde
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    elevation: 3, // Sombra no Android
+    shadowColor: '#000', // Sombra no iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  textoBotao: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
