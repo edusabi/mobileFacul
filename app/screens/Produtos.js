@@ -5,13 +5,14 @@ import {
   TextInput, 
   Alert, 
   StyleSheet, 
-  TouchableOpacity // Importar TouchableOpacity
+  TouchableOpacity 
 } from 'react-native';
 import { supabase } from '../api/SupabaseClient';
 
 const Produtos = () => {
   const [nome, setNome] = useState('');
   const [preco, setPreco] = useState('');
+  const [custo, setCusto] = useState(''); // <--- Novo Estado para Custo
   const [estoque, setEstoque] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +22,12 @@ const Produtos = () => {
       return;
     }
     if (!preco.trim() || isNaN(preco)) {
-      Alert.alert('Erro', 'Preço inválido');
+      Alert.alert('Erro', 'Preço de venda inválido');
+      return;
+    }
+    // Validação do Custo (opcional, mas se preenchido deve ser número)
+    if (custo.trim() && isNaN(custo)) {
+      Alert.alert('Erro', 'Preço de custo inválido');
       return;
     }
     if (estoque.trim() && isNaN(estoque)) {
@@ -37,6 +43,7 @@ const Produtos = () => {
         {
           nome,
           preco: parseFloat(preco),
+          custo: custo ? parseFloat(custo) : 0, // <--- Envia o Custo (ou 0 se vazio)
           estoque: estoque ? parseInt(estoque) : 0,
         },
       ]);
@@ -49,6 +56,7 @@ const Produtos = () => {
       Alert.alert('Sucesso', 'Produto cadastrado!');
       setNome('');
       setPreco('');
+      setCusto(''); // <--- Limpa o campo custo
       setEstoque('');
     }
   };
@@ -57,30 +65,42 @@ const Produtos = () => {
     <View style={styles.container}>
       <Text style={styles.titulo}>Cadastro de Produtos</Text>
 
+      <Text style={styles.label}>Nome do Produto</Text>
       <TextInput
         style={styles.input}
-        placeholder="Nome do produto"
+        placeholder="Ex: Sela de Couro"
         value={nome}
         onChangeText={setNome}
       />
 
+      <Text style={styles.label}>Preço de Venda (R$)</Text>
       <TextInput
         style={styles.input}
-        placeholder="Preço (ex: 10.50)"
+        placeholder="0.00"
         value={preco}
         onChangeText={setPreco}
         keyboardType="numeric"
       />
 
+      {/* --- Novo Campo de Custo --- */}
+      <Text style={styles.label}>Preço de Custo (R$)</Text>
       <TextInput
         style={styles.input}
-        placeholder="Estoque inicial"
+        placeholder="0.00 (Quanto você pagou/gastou)"
+        value={custo}
+        onChangeText={setCusto}
+        keyboardType="numeric"
+      />
+
+      <Text style={styles.label}>Quantidade em Estoque</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="0"
         value={estoque}
         onChangeText={setEstoque}
         keyboardType="numeric"
       />
 
-      {/* Substituí o Button pelo TouchableOpacity para estilizar */}
       <TouchableOpacity 
         style={styles.botaoSalvar} 
         onPress={salvarProduto}
@@ -105,24 +125,32 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 20,
+    textAlign: 'center',
+    color: '#333',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 5,
+    color: '#555',
   },
   input: {
     borderWidth: 1,
     borderColor: '#CCC',
     borderRadius: 8,
     padding: 10,
-    marginBottom: 12,
+    marginBottom: 15, // Aumentei um pouco o espaçamento
+    fontSize: 16,
   },
-  // Novos estilos para o botão verde
   botaoSalvar: {
-    backgroundColor: '#4CAF50', // Verde
+    backgroundColor: '#4CAF50', 
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 10,
-    elevation: 3, // Sombra no Android
-    shadowColor: '#000', // Sombra no iOS
+    elevation: 3, 
+    shadowColor: '#000', 
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,

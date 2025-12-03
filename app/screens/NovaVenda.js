@@ -1,4 +1,3 @@
-// src/screens/NovaVenda.js
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
@@ -10,7 +9,7 @@ import { supabase } from '../api/SupabaseClient';
 
 const LOGO_PATH = 'file:///mnt/data/458fb76c-5cd7-44a7-bf1e-c9aecec33771.png';
 
-export default function NovaVenda() {
+export default function NovaVenda({ navigation }) {
   const [clients, setClients] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,24 +27,13 @@ export default function NovaVenda() {
   // histórico local (apenas UI)
   const [salesHistory, setSalesHistory] = useState([]);
 
-  // Carrega clientes e produtos do Supabase
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
+    loadInitialData();
+  }, []);
 
-      // carregar clientes
-      const { data: clientData, error: clientErr } = await supabase
-        .from('clientes')
-        .select('*');
-
-      if (clientErr) {
-        console.error(clientErr);
-        Alert.alert('Erro ao carregar clientes');
-      } else {
-        setClients(clientData || []);
-      }
-
-      // carregar produtos
+  // Função isolada para carregar produtos (para poder atualizar depois da venda)
+  const fetchProducts = async () => {
+    try {
       const { data: productData, error: productErr } = await supabase
         .from('produtos')
         .select('*');
@@ -57,12 +45,32 @@ export default function NovaVenda() {
         // garante que preco seja número
         setProducts((productData || []).map(p => ({ ...p, preco: Number(p.preco) })));
       }
+    } catch (error) {
+      console.error('Erro no fetchProducts:', error);
+    }
+  };
 
-      setLoading(false);
+  // Carrega tudo na inicialização
+  async function loadInitialData() {
+    setLoading(true);
+    
+    // 1. Carregar clientes
+    const { data: clientData, error: clientErr } = await supabase
+      .from('clientes')
+      .select('*');
+
+    if (clientErr) {
+      console.error(clientErr);
+      Alert.alert('Erro ao carregar clientes');
+    } else {
+      setClients(clientData || []);
     }
 
-    loadData();
-  }, []);
+    // 2. Carregar produtos usando a função reutilizável
+    await fetchProducts();
+
+    setLoading(false);
+  }
 
   const filteredClients = useMemo(() => {
     const q = clientQuery.trim().toLowerCase();
@@ -231,11 +239,18 @@ export default function NovaVenda() {
       // gerar recibo PDF e compartilhar
       await generateReciboPdf(vendaForPdf);
 
-      // limpar UI
+      // limpar UI e resetar estados
       setCart([]);
       setSelectedClient(null);
       setClientQuery('');
-      Alert.alert('Venda registrada com sucesso!');
+      
+      // === ATUALIZAÇÃO IMPORTANTE ===
+      // Recarrega os produtos para atualizar estoque (caso o banco tenha trigger)
+      // e prepara a tela para a próxima venda
+      await fetchProducts(); 
+
+      Alert.alert('Sucesso', 'Venda registrada com sucesso!');
+      
     } catch (err) {
       console.error(err);
       Alert.alert('Erro inesperado ao registrar venda');
@@ -406,9 +421,7 @@ export default function NovaVenda() {
         style={styles.input}
       />
 
-      {/* SOLUÇÃO 1: Substituímos FlatList por um ScrollView interno com nestedScrollEnabled.
-         Usamos slice(0,50) para garantir performance se houver muitos clientes.
-      */}
+      {/* Lista de clientes com Scroll limitado para performance */}
       <View style={{ maxHeight: 140, borderWidth:1, borderColor:'#f0f0f0', borderRadius:6, marginTop:4 }}>
         <ScrollView nestedScrollEnabled={true}>
           {filteredClients.slice(0, 50).map((item) => (
@@ -459,7 +472,7 @@ export default function NovaVenda() {
       <Text style={[styles.title, { marginTop: 16 }]}>Carrinho</Text>
       {cart.length === 0 && <Text style={{ color:'#666' }}>Carrinho vazio</Text>}
 
-      {/* SOLUÇÃO 2: Substituímos FlatList do carrinho por .map() */}
+      {/* Renderização do carrinho via map */}
       <View>
         {cart.map((item) => (
           <View key={item.id} style={styles.cartItem}>
@@ -497,7 +510,7 @@ export default function NovaVenda() {
 
       <Text style={[styles.title, { marginTop: 20 }]}>Histórico (local)</Text>
       
-      {/* SOLUÇÃO 3: Substituímos FlatList do histórico por .map() */}
+      {/* Histórico local das vendas feitas nesta sessão */}
       <View>
         {salesHistory.map((item) => (
           <View key={item.id} style={styles.saleItem}>
@@ -507,7 +520,7 @@ export default function NovaVenda() {
         ))}
       </View>
 
-      {/* Modal de produtos - Mantido com FlatList pois está isolado do ScrollView principal */}
+      {/* Modal de produtos */}
       <Modal visible={productModalVisible} animationType="slide">
         <View style={{ flex:1, padding:16 }}>
           <Text style={styles.title}>Escolher produto</Text>
@@ -519,6 +532,7 @@ export default function NovaVenda() {
               <TouchableOpacity onPress={() => selectProductFromModal(item)} style={styles.listItem}>
                 <Text>{item.nome}</Text>
                 <Text style={styles.small}>R$ {item.preco.toFixed(2)}</Text>
+                <Text style={{ fontSize:10, color:'#888' }}>Estoque: {item.estoque}</Text>
               </TouchableOpacity>
             )}
           />
